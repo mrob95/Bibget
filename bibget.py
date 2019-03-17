@@ -20,20 +20,23 @@ def google_scholar_query(searchstr):
     searchstr = '/scholar?q=' + quote(searchstr)
     url = "https://scholar.google.com" + searchstr
     htmlsoup = request_page(url)
-    with open("test.html", "w+") as f:
-        f.write(str(htmlsoup))
+    # with open("test.html", "w+") as f:
+        # f.write(str(htmlsoup))
 
     refs_list = []
     refre = re.compile(r'https://scholar.googleusercontent.com(/scholar\.bib\?[^"]*)')
     for div in htmlsoup.find_all("div", {"class":"gs_ri"}):
-        title, author, bib_link = "", "", ""
+        title, author, year, bib_link = "", "", "", ""
         title = div.h3.text
-        author = div.find("div", {"class":"gs_a"}).text
+        author_field = div.find("div", {"class":"gs_a"}).text
+        author = author_field.split("-")[0]
+        datere = re.search(r"\d{4}", author_field)
+        date = datere.group(0) if datere else ""
         for link in div.find_all("a"):
             link_url = link.get("href")
             if refre.search(link_url):
                 bib_link = link_url
-        refs_list.append((title, author, bib_link))
+        refs_list.append((title, author, date, bib_link))
     return refs_list
 
 def return_bib(scholar_bib_url):
@@ -42,29 +45,30 @@ def return_bib(scholar_bib_url):
 
 def main(argv):
     try:
-        opts, args = getopt.getopt(argv, "lbuf")
+        opts, args = getopt.getopt(argv, "luf")
         # print(opts)
         # print(args)
     except getopt.GetoptError:
         print("failed")
         sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-l':
-            links = google_scholar_query(args[0])
-            for link in links:
-                print("\t".join(link))
-        if opt == '-f':
-            links = google_scholar_query(args[0])
-            print("\t".join(links[0]))
-        if opt == '-b':
-            links = google_scholar_query(args[0])
-            first_link = links[0][2]
-            ref = return_bib(first_link)
-            print(ref)
-        if opt == '-u':
-            link = sys.stdin.read().split("\t")[2]
-            ref = return_bib(link)
-            print(ref)
+    if not opts:
+        links = google_scholar_query(args[0])
+        first_link = links[0][-1]
+        ref = return_bib(first_link)
+        print(ref)
+    else:
+        for opt, arg in opts:
+            if opt == '-l':
+                links = google_scholar_query(args[0])
+                for link in links:
+                    print("\t".join(link))
+            if opt == '-f':
+                links = google_scholar_query(args[0])
+                print("\t".join(links[0]))
+            if opt == '-u':
+                link = sys.stdin.read().split("\t")[-1]
+                ref = return_bib(link)
+                print(ref)
 
 if __name__ == "__main__":
    main(sys.argv[1:])
